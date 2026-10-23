@@ -1,5 +1,7 @@
 {
   "File": "File",
+  "ShowTrayIcon": "Show tray icon",
+  "QuitFerret": "Quit Ferret",
   "Edit": "Edit",
   "View": "View",
   "Go": "Go",

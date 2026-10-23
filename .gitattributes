@@ -1,0 +1,2 @@
+_builds/build.sh text eol=lf
+_builds/fe-linux-*/etc/xdg/autostart/*.desktop text eol=lf

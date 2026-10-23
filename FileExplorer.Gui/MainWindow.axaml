@@ -744,6 +744,9 @@
                               Icon="{markup:Icon Key=close}"
                               Click="OnMenuCloseClick"
                               InputGesture="Ctrl+Q"/>
+                    <MenuItem x:Name="QuitFerretMenuItem"
+                              Header="{markup:Translate Key=QuitFerret}"
+                              Click="OnQuitFerretClick"/>
                 </MenuItem>
 
                 <!-- Edit Menu -->
@@ -830,6 +833,10 @@
                               Header="{markup:Translate Key=UseAsSystemPicker}"
                               ToggleType="CheckBox"
                               Click="OnSystemPickerClick"/>
+                    <MenuItem x:Name="TrayIconMenuItem"
+                              Header="{markup:Translate Key=ShowTrayIcon}"
+                              ToggleType="CheckBox"
+                              Click="OnTrayIconClick"/>
                 </MenuItem>
 
                 <!-- Go Menu -->

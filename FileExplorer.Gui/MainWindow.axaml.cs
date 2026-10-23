@@ -75,6 +75,19 @@ public partial class MainWindow : Window
     private readonly List<ListBox> _fileListBoxes = new();
 
     public FilePickerResult? PickerResult { get; private set; }
+    internal string? StartupId { get; set; }
+    private IntPtr _xdndHandle;
+    private bool _closed;
+    private Action? _preparePlatform;
+
+    internal void PrepareLayout()
+    {
+        if (_closed) return;
+        ApplyTemplate();
+        Measure(new Size(Width, Height));
+        Arrange(new Rect(0, 0, Width, Height));
+        _preparePlatform?.Invoke();
+    }
 
     public MainWindow() : this(null, null)
     {
@@ -88,6 +101,10 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = new MainWindowViewModel(initialPath, pickerOptions);
+        TrayIconMenuItem.IsVisible = OperatingSystem.IsLinux() && pickerOptions == null;
+        QuitFerretMenuItem.IsVisible = pickerOptions == null;
+        UpdateTrayMenu();
+        GuiSettings.TrayVisibilityChanged += UpdateTrayMenu;
 
         if (pickerOptions != null)
         {
@@ -112,7 +129,7 @@ public partial class MainWindow : Window
         Closing += (_, _) =>
         {
             PickerResult ??= FilePickerResult.Cancelled();
-            if (pickerOptions == null)
+            if (pickerOptions == null && IsVisible)
             {
                 GuiSettings.WindowMaximized = WindowState == WindowState.Maximized;
             }
@@ -135,13 +152,12 @@ public partial class MainWindow : Window
             pane.ContentChanged += OnPaneContentLoaded;
         }
 
-        Opened += (s, e) =>
+        _preparePlatform = () =>
         {
             IPlatformHandle? handle = TryGetPlatformHandle();
-            if (handle != null)
+            if (handle != null && handle.Handle != _xdndHandle)
             {
-                X11WindowHelper.ConfigureWindow(handle.Handle);
-                X11WindowHelper.CompleteStartupNotification(handle.Handle);
+                _xdndHandle = handle.Handle;
                 X11XdndHook.Hook(
                     this,
                     (paths, rootX, rootY, isCopy) =>
@@ -173,14 +189,23 @@ public partial class MainWindow : Window
                     });
             }
         };
+        Opened += (_, _) =>
+        {
+            _preparePlatform();
+            X11WindowHelper.ConfigureWindow(_xdndHandle);
+            X11WindowHelper.CompleteStartupNotification(_xdndHandle, StartupId);
+        };
         
         Closed += (s, e) =>
         {
+            _closed = true;
+            GuiSettings.TrayVisibilityChanged -= UpdateTrayMenu;
+            X11XdndHook.Unhook(_xdndHandle);
             AddonService.Instance.AddonsChanged -= OnAddonsChanged;
             ThemeService.ColorsChanged -= RefreshAllIcons;
             FileTypeIconService.Changed -= RefreshAllIcons;
             ViewModel.Dispose();
-            GuiInstanceRegistry.Unregister(Environment.ProcessId);
+            if (Program.ResidentServer == null) GuiInstanceRegistry.Unregister(Environment.ProcessId);
         };
 
         try
@@ -524,6 +549,19 @@ public partial class MainWindow : Window
         SystemPickerMenuItem.IsEnabled = SystemPickerService.IsInstalled;
         SystemPickerMenuItem.IsChecked = SystemPickerService.IsEnabled;
         ToolTip.SetTip(SystemPickerMenuItem, SystemPickerService.IsInstalled ? null : LocalizationService.Get("SystemPickerNotInstalled"));
+    }
+
+    private void UpdateTrayMenu() => TrayIconMenuItem.IsChecked = GuiSettings.ShowTrayIcon;
+
+    private void OnTrayIconClick(object? sender, RoutedEventArgs e)
+    {
+        GuiSettings.ShowTrayIcon = TrayIconMenuItem.IsChecked;
+    }
+
+    private void OnQuitFerretClick(object? sender, RoutedEventArgs e)
+    {
+        if (Application.Current is App { ResidentWindows: not null } app) app.ResidentWindows.Quit();
+        else if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) desktop.Shutdown();
     }
 
     private async void OnSystemPickerClick(object? sender, RoutedEventArgs e)
@@ -1920,6 +1958,9 @@ public partial class MainWindow : Window
 
     private void OnPaneContentLoaded(PaneViewModel pane)
     {
+        if (!IsVisible && !pane.IsLoading)
+            Dispatcher.UIThread.Post(PrepareLayout, DispatcherPriority.ApplicationIdle);
+
         if (_pendingSelectPaths.Count == 0 || pane != _pendingSelectPane)
         {
             return;
@@ -3214,6 +3255,11 @@ public partial class MainWindow : Window
 
     private void OnMenuNewWindowClick(object? sender, RoutedEventArgs e)
     {
+        if (Application.Current is App { ResidentWindows: not null } app)
+        {
+            app.ResidentWindows.Open();
+            return;
+        }
         string? procPath = Environment.ProcessPath;
         if (!string.IsNullOrEmpty(procPath))
         {

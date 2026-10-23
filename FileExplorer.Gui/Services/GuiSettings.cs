@@ -8,6 +8,18 @@ namespace FileExplorer.Gui.Services;
 
 public static class GuiSettings
 {
+    public static event Action? TrayVisibilityChanged;
+
+    public static bool ShowTrayIcon
+    {
+        get => GetBool("show_tray_icon", true);
+        set
+        {
+            SetBool("show_tray_icon", value);
+            TrayVisibilityChanged?.Invoke();
+        }
+    }
+
     private static readonly string SettingsFile = Path.Combine(AppPaths.DataDir, "gui_settings");
     private static readonly object SaveLock = new();
 

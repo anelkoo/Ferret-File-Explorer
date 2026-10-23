@@ -6,6 +6,13 @@ Now also with a GUI to go with it!
 
 Work in progress, report all issues in the issues tab
 
+## Fast Linux startup
+
+The full Linux packages keep a prepared Home window in the background after
+login. Toggle the panel icon with **View → Show tray icon**; Ferret stays ready
+with the icon hidden too. Use **File → Quit Ferret** or `ferret --quit` to exit.
+See the [startup guide](_docs/STARTUP.md) for building and verification.
+
 ## Addons
 
 Add your own entries to the right-click and Addons menus, and your own commands to the path bar, that run scripts or programs, without rebuilding Ferret.

@@ -481,6 +481,25 @@ public static class X11XdndHook
         windowsDict[xid] = hookDelegate;
     }
 
+    public static void Unhook(IntPtr xid)
+    {
+        if (xid == IntPtr.Zero) return;
+        if (_x11Platform != null && OriginalHandlers.TryGetValue(xid, out Delegate? original))
+        {
+            PropertyInfo? windowsProperty = _x11Platform.GetType().GetProperty("Windows", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (windowsProperty?.GetValue(_x11Platform) is IDictionary windows && windows.Contains(xid))
+                windows[xid] = original;
+        }
+        OriginalHandlers.Remove(xid);
+        DropCallbacks.Remove(xid);
+        LinkCallbacks.Remove(xid);
+        DragOverCallbacks.Remove(xid);
+        DragLeaveCallbacks.Remove(xid);
+        ActiveSources.Remove(xid);
+        LatestPositions.Remove(xid);
+        SourceActions.Remove(xid);
+    }
+
     public static void StartDrag(Window sourceWindow, List<string> filePaths, FileItemViewModel? firstItem)
     {
         if (!OperatingSystem.IsLinux() || filePaths.Count == 0)
